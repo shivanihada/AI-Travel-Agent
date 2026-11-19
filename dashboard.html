@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard - AI Travel Agent</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #f2f5fa; display: flex; min-height: 100vh; }
+    .sidebar { width: 200px; background: #1e3c72; color: #fff; padding: 20px 0; }
+    .sidebar h3 { text-align: center; margin: 0 0 20px; }
+    .sidebar a { display: block; color: #fff; text-decoration: none; padding: 12px 20px; }
+    .sidebar a:hover, .sidebar a.active { background: #2a5298; }
+    .main { flex: 1; padding: 25px; }
+    .cards { display: flex; gap: 15px; flex-wrap: wrap; margin: 20px 0; }
+    .card { background: #fff; padding: 18px; border-radius: 10px; min-width: 170px; flex: 1;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+    .card small { color: #666; }
+    .card h2 { margin: 8px 0 0; color: #1e3c72; }
+    table { width: 100%; background: #fff; border-collapse: collapse; border-radius: 10px; overflow: hidden; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #dde6f5; }
+  </style>
+  <style>
+  body {
+    background: linear-gradient(rgba(15,23,42,.35), rgba(15,23,42,.35)),
+                url('/static/bg3.jpg') center / cover fixed no-repeat !important;
+  }
+</style>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1e3a73">
+<link rel="icon" href="/static/icon-192.png">
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js");
+  }
+</script></head>
+<body>
+  <div class="sidebar">
+    <h3>AI Travel Agent</h3>
+    <a href="/dashboard" class="active">Dashboard</a>
+    <a href="/plan">Plan Trip</a>
+    <a href="/memories">My Trips</a>
+    <a href="/profile">Profile</a>
+    <a href="/logout">Logout</a>
+  </div>
+
+  <div class="main">
+    <h2>Welcome, {{ user[0] or "Traveller" }}!</h2>
+
+    <div class="cards">
+      <div class="card"><small>Total saved trips</small><h2>{{ trips|length }}</h2></div>
+      <div class="card"><small>Latest trip</small>
+        <h2>{% if trips %}{{ trips[0][2] }}{% else %}-{% endif %}</h2></div>
+      <div class="card"><small>Your usual budget</small>
+        <h2>{% if user[1] %}INR {{ user[1] }}{% else %}-{% endif %}</h2></div>
+    </div>
+
+    <h3 id="trips">My saved trips</h3>
+    {% if trips %}
+<table>
+  <tr><th>Destination</th><th>Days</th><th>Budget</th><th>Saved on</th><th>Itinerary</th></tr>
+  {% for t in trips %}
+  <tr><td>{{ t[2] }}</td><td>{{ t[3] }}</td><td>{{ t[4] }}</td><td>{{ t[1][:10] }}</td>
+  <td><a href="/trip/{{ t[0] }}/pdf">Download PDF</a></td></tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>No saved trips yet. Click <b>Plan Trip</b> to create your first itinerary.</p>
+{% endif %}
+  </div>
+</body>
+</html>

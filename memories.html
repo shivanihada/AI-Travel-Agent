@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Trips - Memories</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 0; background: #eaf0fa; }
+  .wrap { max-width: 800px; margin: 0 auto; padding: 20px; }
+  h2 { color: #1e3a6e; }
+  .back { display: inline-block; margin-bottom: 12px; color: #1e3a6e; text-decoration: none; font-weight: bold; }
+  .pad { background: #fff8c6; border-radius: 10px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); margin-bottom: 20px; }
+  .pad input, .pad select, .pad textarea { width: 100%; box-sizing: border-box; padding: 10px; margin-bottom: 10px; border: 1px solid #d8cc7a; border-radius: 6px; font-size: 15px; background: #fffdf0; font-family: inherit; }
+  .pad textarea { min-height: 140px; resize: vertical; line-height: 1.5; }
+  button { padding: 9px 18px; background: #1e3a6e; color: #fff; border: 0; border-radius: 6px; cursor: pointer; font-size: 14px; margin-right: 6px; }
+  button:hover { background: #2e5faa; }
+  button.grey { background: #888; }
+  button.red { background: #c0392b; }
+  .note { background: #fff; border-left: 5px solid #f5a623; border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; box-shadow: 0 1px 5px rgba(0,0,0,0.1); }
+  .note h3 { margin: 0 0 4px; color: #1e3a6e; }
+  .meta { font-size: 12px; color: #777; margin-bottom: 8px; }
+  .text { white-space: pre-wrap; line-height: 1.5; color: #333; margin-bottom: 10px; }
+  .msg { color: #c0392b; margin-bottom: 8px; min-height: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/dashboard">← Back to Dashboard</a>
+  <h2>📓 My Trip Memories</h2>
+
+  <div class="pad">
+    <select id="trip">
+      <option value="">-- Link to a trip (optional) --</option>
+      {% for t in trips %}
+      <option value="{{ t.id }}">{{ t.destination }}</option>
+      {% endfor %}
+    </select>
+    <input id="title" placeholder="Title (e.g. Rainy day in Mumbai)">
+    <textarea id="content" placeholder="Write your trip memories here..."></textarea>
+    <div class="msg" id="msg"></div>
+    <button onclick="saveNote()" id="saveBtn">Save Memory</button>
+    <button class="grey" onclick="resetForm()">Clear</button>
+  </div>
+
+  <div id="list"></div>
+</div>
+
+<script>
+var notes = {{ notes|tojson }};
+var editingId = null;
+
+function render() {
+  var list = document.getElementById("list");
+  list.innerHTML = "";
+  if (!notes.length) {
+    list.textContent = "No memories yet. Write your first memory above!";
+    return;
+  }
+  notes.forEach(function (n) {
+    var d = document.createElement("div");
+    d.className = "note";
+
+    var h = document.createElement("h3");
+    h.textContent = n.title || "Untitled";
+    d.appendChild(h);
+
+    var m = document.createElement("div");
+    m.className = "meta";
+    m.textContent = (n.created_at || "").slice(0, 10) + (n.destination ? "  |  " + n.destination : "");
+    d.appendChild(m);
+
+    var t = document.createElement("div");
+    t.className = "text";
+    t.textContent = n.content || "";
+    d.appendChild(t);
+
+    var e = document.createElement("button");
+    e.textContent = "Edit";
+    e.onclick = function () { editNote(n.id); };
+    d.appendChild(e);
+
+    var x = document.createElement("button");
+    x.className = "red";
+    x.textContent = "Delete";
+    x.onclick = function () { deleteNote(n.id); };
+    d.appendChild(x);
+
+    list.appendChild(d);
+  });
+}
+
+function editNote(id) {
+  var n = notes.find(function (x) { return x.id === id; });
+  if (!n) return;
+  editingId = id;
+  document.getElementById("title").value = n.title || "";
+  document.getElementById("content").value = n.content || "";
+  document.getElementById("trip").value = n.trip_id || "";
+  document.getElementById("saveBtn").textContent = "Update Memory";
+  window.scrollTo(0, 0);
+}
+
+function resetForm() {
+  editingId = null;
+  document.getElementById("title").value = "";
+  document.getElementById("content").value = "";
+  document.getElementById("trip").value = "";
+  document.getElementById("msg").textContent = "";
+  document.getElementById("saveBtn").textContent = "Save Memory";
+}
+
+function saveNote() {
+  var body = {
+    id: editingId,
+    title: document.getElementById("title").value,
+    content: document.getElementById("content").value,
+    trip_id: document.getElementById("trip").value
+  };
+  fetch("/memories/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  })
+  .then(function (r) { return r.json(); })
+  .then(function (res) {
+    if (res.ok) { location.reload(); }
+    else { document.getElementById("msg").textContent = res.error; }
+  })
+  .catch(function () { document.getElementById("msg").textContent = "Something went wrong."; });
+}
+
+function deleteNote(id) {
+  if (!confirm("Delete this memory?")) return;
+  fetch("/memories/delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: id })
+  })
+  .then(function (r) { return r.json(); })
+  .then(function () { location.reload(); });
+}
+
+render();
+</script>
+</body>
+</html>

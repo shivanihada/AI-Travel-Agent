@@ -7,7 +7,8 @@ import urllib.request
 import urllib.error
 from datetime import datetime, timedelta
 import random
-from flask import Flask, render_template, request, jsonify, session, redirect
+from flask import Flask, render_template, request, jsonify, session, redirect,send_from_directory,abort, Response
+from fpdf import FPDF
 from dotenv import load_dotenv
 from travel_data import get_places, get_weather
 
@@ -180,7 +181,113 @@ def save_itinerary(prefs, itinerary):
             ),
         )
 
+@app.route("/sw.js")
+def service_worker():
+    return send_from_directory("static", "sw.js", mimetype="application/javascript")
 
+@app.route("/manifest.json")
+def manifest():
+    return send_from_directory("static", "manifest.json", mimetype="application/manifest+json")
+def get_trip(trip_id):
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.row_factory = sqlite3.Row
+        return conn.execute(
+            "SELECT * FROM itineraries WHERE id=? AND user_id=?",
+            (trip_id, session["user_id"])).fetchone()
+
+@app.route("/trip/<int:trip_id>")
+def view_trip(trip_id):
+    if "user_id" not in session:
+        return redirect("/login")
+    trip = get_trip(trip_id)
+    if not trip:
+        abort(404)
+    return render_template("trip.html", trip=trip)
+
+def clean(text):
+    text = (text or "").replace("**", "").replace("•", "-").replace("₹", "Rs.")
+    for a, b in {"’": "'", "‘": "'", "“": '"', "”": '"', "–": "-", "—": "-"}.items():
+        text = text.replace(a, b)
+    return text.encode("latin-1", "replace").decode("latin-1")
+
+    
+class ItineraryPDF(FPDF):
+    def footer(self):
+        self.set_y(-12)
+        self.set_font("Helvetica", "I", 9)
+        self.set_text_color(120, 120, 120)
+        self.cell(0, 8, f"AI Travel Agent  |  Page {self.page_no()}", align="C")
+        
+@app.route("/trip/<int:trip_id>/pdf")
+def trip_pdf(trip_id):
+    if "user_id" not in session:
+        return redirect("/login")
+    trip = get_trip(trip_id)
+    if not trip:
+        abort(404)
+
+    pdf = ItineraryPDF()
+    pdf.set_margins(15, 15, 15)
+    pdf.set_auto_page_break(auto=True, margin=18)
+    pdf.add_page()
+
+    # ---- Header band ----
+    pdf.set_fill_color(30, 58, 110)
+    pdf.rect(0, 0, 210, 38, style="F")
+    pdf.set_xy(15, 10)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Helvetica", "B", 22)
+    pdf.cell(0, 10, clean(f"{trip['destination']} Trip Itinerary"), new_x="LMARGIN", new_y="NEXT")
+    pdf.set_x(15)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.cell(0, 8, "Planned by AI Travel Agent", new_x="LMARGIN", new_y="NEXT")
+
+    # ---- Trip info box ----
+    pdf.set_xy(15, 45)
+    pdf.set_fill_color(234, 240, 250)
+    pdf.set_text_color(30, 58, 110)
+    pdf.set_font("Helvetica", "B", 11)
+    info = f"{trip['days']} days   |   Budget: {trip['budget']}   |   Interests: {trip['interests']}"
+    pdf.multi_cell(0, 9, clean(info), fill=True, new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(5)
+
+    # ---- Itinerary body ----
+    for raw in clean(trip["itinerary"]).split("\n"):
+        line = raw.strip().lstrip("*-# ").strip()
+        if not line:
+            pdf.ln(2)
+            continue
+
+        if re.match(r"(?i)^day\s*\d+", line):
+            pdf.ln(3)
+            pdf.set_fill_color(46, 95, 170)
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_font("Helvetica", "B", 13)
+            pdf.multi_cell(0, 9, " " + line, fill=True, new_x="LMARGIN", new_y="NEXT")
+            pdf.ln(1)
+
+        elif re.match(r"(?i)^(estimated\s+)?budget", line):
+            pdf.ln(4)
+            pdf.set_fill_color(39, 150, 100)
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_font("Helvetica", "B", 13)
+            pdf.multi_cell(0, 9, " " + line, fill=True, new_x="LMARGIN", new_y="NEXT")
+            pdf.ln(1)
+
+        else:
+            pdf.set_text_color(40, 40, 40)
+            pdf.set_font("Helvetica", "", 11)
+            m = re.match(r"(?i)^(morning|afternoon|evening)\s*[:\-]\s*(.*)", line)
+            pdf.set_x(18)
+            if m:
+                pdf.multi_cell(0, 6, f"**{m.group(1).title()}:** {m.group(2)}",
+                               markdown=True, new_x="LMARGIN", new_y="NEXT")
+            else:
+                pdf.multi_cell(0, 6, line, new_x="LMARGIN", new_y="NEXT")
+            pdf.ln(1)
+
+    return Response(bytes(pdf.output()), mimetype="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="itinerary-{trip_id}.pdf"'})     
 @app.route("/")
 def home():
     if "user_id" not in session:
@@ -197,6 +304,10 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             created_at TEXT, destination TEXT, days TEXT,
             budget TEXT, interests TEXT, itinerary TEXT, user_id INTEGER)""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS memories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER, trip_id INTEGER,
+            title TEXT, content TEXT, created_at TEXT)""")
 
 init_db()
 @app.route("/plan")
@@ -355,6 +466,67 @@ def save_trip():
             ),
         )
     last_result.pop(uid, None)
+    return jsonify({"ok": True})
+
+
+@app.route("/memories")
+def memories_page():
+    if "user_id" not in session:
+        return redirect("/login")
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.row_factory = sqlite3.Row
+        trips = conn.execute(
+            "SELECT id, destination FROM itineraries WHERE user_id = ? ORDER BY id DESC",
+            (session["user_id"],),
+        ).fetchall()
+        notes = conn.execute(
+            "SELECT m.id, m.title, m.content, m.created_at, m.trip_id, i.destination "
+            "FROM memories m LEFT JOIN itineraries i ON i.id = m.trip_id "
+            "WHERE m.user_id = ? ORDER BY m.id DESC",
+            (session["user_id"],),
+        ).fetchall()
+    return render_template(
+        "memories.html",
+        trips=[dict(t) for t in trips],
+        notes=[dict(n) for n in notes],
+    )
+
+
+@app.route("/memories/save", methods=["POST"])
+def memory_save():
+    uid = session.get("user_id")
+    if not uid:
+        return jsonify({"ok": False, "error": "Please login first"})
+    d = request.json or {}
+    title = (d.get("title") or "").strip()
+    content = (d.get("content") or "").strip()
+    note_id = d.get("id")
+    try:
+        trip_id = int(d.get("trip_id")) if d.get("trip_id") else None
+    except (TypeError, ValueError):
+        trip_id = None
+    if not title and not content:
+        return jsonify({"ok": False, "error": "Please write something first"})
+    with sqlite3.connect(DB_FILE) as conn:
+        if note_id:
+            conn.execute(
+                "UPDATE memories SET title = ?, content = ?, trip_id = ? WHERE id = ? AND user_id = ?",
+                (title, content, trip_id, note_id, uid),
+            )
+        else:
+            conn.execute(
+                "INSERT INTO memories (user_id, trip_id, title, content, created_at) VALUES (?, ?, ?, ?, ?)",
+                (uid, trip_id, title, content, datetime.now().isoformat(timespec="seconds")),
+            )
+    return jsonify({"ok": True})
+@app.route("/memories/delete", methods=["POST"])
+def memory_delete():
+    uid = session.get("user_id")
+    if not uid:
+        return jsonify({"ok": False, "error": "Please login first"})
+    note_id = (request.json or {}).get("id")
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute("DELETE FROM memories WHERE id = ? AND user_id = ?", (note_id, uid))
     return jsonify({"ok": True})
 
 
