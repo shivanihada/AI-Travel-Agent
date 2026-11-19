@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dashboard - AI Travel Agent</title>
@@ -26,13 +27,20 @@
                 url('/static/bg3.jpg') center / cover fixed no-repeat !important;
   }
 </style>
-</head>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1e3a73">
+<link rel="icon" href="/static/icon-192.png">
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js");
+  }
+</script></head>
 <body>
   <div class="sidebar">
     <h3>AI Travel Agent</h3>
     <a href="/dashboard" class="active">Dashboard</a>
     <a href="/plan">Plan Trip</a>
-    <a href="/dashboard#trips">My Trips</a>
+    <a href="/memories">My Trips</a>
     <a href="/profile">Profile</a>
     <a href="/logout">Logout</a>
   </div>
@@ -50,15 +58,16 @@
 
     <h3 id="trips">My saved trips</h3>
     {% if trips %}
-    <table>
-      <tr><th>Destination</th><th>Days</th><th>Budget</th><th>Saved on</th></tr>
-      {% for t in trips %}
-      <tr><td>{{ t[2] }}</td><td>{{ t[3] }}</td><td>{{ t[4] }}</td><td>{{ t[1][:10] }}</td></tr>
-      {% endfor %}
-    </table>
-    {% else %}
-    <p>No saved trips yet. Click <b>Plan Trip</b> to create your first itinerary.</p>
-    {% endif %}
+<table>
+  <tr><th>Destination</th><th>Days</th><th>Budget</th><th>Saved on</th><th>Itinerary</th></tr>
+  {% for t in trips %}
+  <tr><td>{{ t[2] }}</td><td>{{ t[3] }}</td><td>{{ t[4] }}</td><td>{{ t[1][:10] }}</td>
+  <td><a href="/trip/{{ t[0] }}/pdf">Download PDF</a></td></tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>No saved trips yet. Click <b>Plan Trip</b> to create your first itinerary.</p>
+{% endif %}
   </div>
 </body>
 </html>

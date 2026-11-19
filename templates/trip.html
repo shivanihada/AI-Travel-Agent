@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Itinerary</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1e3a73">
+<style>
+  body { font-family: Arial, sans-serif; margin: 0; padding: 16px; background: #eef3fb; }
+  .card { background: #fff; border-radius: 14px; padding: 18px; max-width: 800px; margin: auto; }
+  pre { white-space: pre-wrap; font-family: inherit; line-height: 1.6; }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .btns a, .btns button { background: #1e3a73; color: #fff; border: none; border-radius: 999px;
+    padding: 10px 16px; text-decoration: none; font-size: 14px; cursor: pointer; }
+</style>
+</head>
+<body>
+    <a href="/dashboard" class="back-btn">← Back to Dashboard</a>
+<div class="card">
+  <h2>{{ trip['destination'] }} - {{ trip['days'] }} days</h2>
+  <p>{{ trip['budget'] }} | {{ trip['interests'] }} | Saved on {{ trip['created_at'][:10] }}</p>
+  <div class="btns">
+    <a href="/dashboard">Back</a>
+    <a href="/trip/{{ trip['id'] }}/pdf">Download PDF</a>
+    <button type="button" onclick="sharePdf()">Share PDF</button>
+  </div>
+  <pre>{{ trip['itinerary'] }}</pre>
+</div>
+<script>
+async function sharePdf() {
+  const url = "/trip/{{ trip['id'] }}/pdf";
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const file = new File([blob], "itinerary-{{ trip['id'] }}.pdf", { type: "application/pdf" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: "My Itinerary" });
+      return;
+    }
+  } catch (e) { if (e.name === "AbortError") return; }
+  window.location.href = url;
+}
+</script>
+</body>
+</html>

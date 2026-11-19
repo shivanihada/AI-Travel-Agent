@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Profile - AI Travel Agent</title>
@@ -21,8 +22,16 @@
                 url('/static/bg3.jpg') center / cover fixed no-repeat !important;
   }
 </style>
-</head>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1e3a73">
+<link rel="icon" href="/static/icon-192.png">
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js");
+  }
+</script></head>
 <body>
+  <a href="/dashboard" class="back-btn">← Back to Dashboard</a>
   <div class="box">
     <h2>Set up your profile</h2>
 

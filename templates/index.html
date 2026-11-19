@@ -1,10 +1,19 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AI Travel Agent</title>
   <link rel="stylesheet" href="/static/style.css">
-</head>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1e3a73">
+<link rel="icon" href="/static/icon-192.png">
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js");
+  }
+</script></head>
 <body>
+
   <div class="chat-container">
     <h2>AI Travel Agent</h2>
     <div id="chat-box"></div>
@@ -16,6 +25,7 @@
       <button id="download-btn" onclick="downloadPlan()">Download itinerary</button>
       <button id="save-btn" onclick="saveTrip()">Save itinerary</button>
       <button id="new-btn" onclick="newTrip()">New trip</button>
+      <button id="dashboard-btn" onclick="if(confirm('Current chat will disappear if not saved. Go to dashboard?')) window.location.href='/dashboard'">Dashboard</button>
     </div>
   </div>
   <script src="/static/script.js"></script>

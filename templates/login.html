@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Login - AI Travel Agent</title>
@@ -22,7 +23,14 @@
   }
 </style>
 
-</head>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1e3a73">
+<link rel="icon" href="/static/icon-192.png">
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js");
+  }
+</script></head>
 <body>
   <div class="box">
     <h2>AI Travel Agent</h2>
