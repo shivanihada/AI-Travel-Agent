@@ -1,0 +1,3 @@
+The user signs in with a phone number and a demo OTP, sets up a short profile (name, usual budget, travel style and purpose of travel) and chats with the agent.
+The chatbot, built on the Google Gemini API, asks for five details: destination, number of days, budget, interests and start date. The application then fetches real places from the Geoapify API and the weather forecast from the OpenWeatherMap API and gives these data to the language model, which writes a day-wise itinerary with morning, afternoon and evening activities and a transport tip for every day.
+The itinerary can be downloaded, saved to the user's account and viewed again from a dashboard, and a trip-memories page lets the user keep notes about completed trips.
